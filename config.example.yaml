@@ -1,0 +1,33 @@
+# Writer 配置
+# 复制为 config.yaml 并填入你的信息
+
+# 默认作者署名
+author: ""
+
+# AI 图片生成
+# 支持 2 个 provider，按顺序尝试，火山方舟优先，失败自动 fallback 到阿里百炼
+# 火山方舟为必填，阿里百炼为可选（非必须提供 key）
+#
+# ┌─────────────────┬──────────────────────────────────────────────┬────────────────────┐
+# │ Provider        │ 获取 API Key                                 │ 特点               │
+# ├─────────────────┼──────────────────────────────────────────────┼────────────────────┤
+# │ volcengine      │ https://console.volcengine.com/ark           │ 火山方舟，默认优先 │
+# │ dashscope       │ https://dashscope.console.aliyun.com/        │ 阿里百炼，备选     │
+# └─────────────────┴──────────────────────────────────────────────┴────────────────────┘
+image:
+  providers:
+    - provider: volcengine          # 火山方舟（默认优先）
+      api_key: "your_volcengine_key"  # 必填
+      # model: "doubao-seedream-5-0-260128"  # 可选，有默认值
+      # base_url: "https://ark.cn-beijing.volces.com/api/v3"  # 可选
+    - provider: dashscope           # 阿里百炼（可选 fallback）
+      # api_key: "your_dashscope_key"  # 非必填，不填则跳过
+      # model: "qwen-image-2.0-pro"      # 可选，有默认值
+
+# 简化配置（只使用火山方舟）：
+# image:
+#   provider: "volcengine"
+#   api_key: "your_volcengine_key"
+
+# 默认排版主题（公众号/知乎/搜狐等支持富文本的平台使用）
+theme: "professional-clean"
