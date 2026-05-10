@@ -52,12 +52,15 @@ allowed-tools:
 | 豆瓣（douban） | Markdown + Word | 16:9（可选） |
 | 大鱼号（dayu） | 富文本 HTML + Word | 封面 16:9，内文 2-3 张 |
 | 36氪（kr36） | Markdown + Word | 16:9（1-2 张数据图） |
+| 哔哩哔哩（bilibili） | 视频脚本 + 专栏 Markdown | 封面 16:9 |
+| 抖音（douyin） | 短视频脚本 + 图文文案 | 封面 9:16 |
+| Newsletter | HTML 邮件 + Markdown + Word | 内联图片 |
 
 **模式**：
 - **默认全自动**——一口气跑完 Step 1-8，不中途停下。只在出错时停。
 - **交互模式**——用户说"交互模式"/"我要自己选"时，在选题/框架/配图处暂停。
 - **单平台模式**——用户指定一个平台（如"写篇小红书"），只生成该平台的文件。
-- **多平台模式**——用户说"多平台发布"/"一键多发"，生成全部 12 个平台的文件。
+- **多平台模式（默认）**——用户说"多平台发布"/"一键多发"/不指定平台时，为全部 12 个平台分别生成**完全不同的文章和配图**（标题不同、角度不同、案例不同、图片不同）。通过 history.yaml 去重，确保同一主题下各平台内容不重复。
 
 **降级原则**：每一步都有降级方案。Step 1 检测到的降级标记（`skip_image_gen`）在后续 Step 自动生效，不重复报错。
 
@@ -71,37 +74,53 @@ allowed-tools:
 
 **路径约定**：本文档中 `{skill_dir}` 指本 SKILL.md 所在的目录（即 Writer 的根目录）。
 
+**回复规范**：输出文件列表时，必须使用以下标准格式，确保所有文件都可点击打开：
+
+1. 每个文件都必须有完整的 `file:///` 绝对路径链接，使用 Markdown 链接语法 `[文件名](file:///完整/绝对/路径)`
+2. 必须使用表格展示，包含：文件名列（带链接）、功能描述列、打开方式列
+3. 表格列标题示例：`| 文件 | 功能 | 打开方式 |`
+4. "打开方式"列统一写 `点击打开`
+5. 不同类别的文件分组展示（如 HTML 清单文件一组，文章原文一组）
+
+示例格式：
+```
+| 文件 | 功能 | 打开方式 |
+|------|------|---------|
+| [`文件名`](file:///完整/路径) | 功能描述 | 点击打开 |
+```
+
+**回复规范**：
+- 输出文件清单时，必须使用 Markdown 表格。
+- 表格包含三列：文件、功能、打开方式。
+- 文件列必须使用 `file:///` 绝对路径链接，确保用户可直接点击打开（例如：`[文件.md](file:///path/to/file.md)`）。
+- 打开方式列统一填写 "点击打开"。
+- 不同类别的文件（如 HTML 清单、文章原文）应分组展示。
+
 **Onboard 例外**：Onboard 是交互式的（需要问用户问题），不受"全自动"约束。Onboard 完成后回到全自动管道。
 
 **辅助功能**（按需加载，不在主管道内）：
 - 用户说"验证配置"/"检查配置"/"测试图片" → 执行 Step 1.1b 图片生成验证流程，告知用户结果
 - 用户说"重新设置风格" → `读取: {skill_dir}/references/onboard.md`
 - 用户说"学习我的修改" → `读取: {skill_dir}/references/learn-edits.md`。用户在 `output/` 的 markdown 文件中修改后执行。
+- 用户说"验证排版"/"检查主题质量" → `python3 {skill_dir}/scripts/theme_quality.py {theme_name}`，输出主题评分和改进建议
 - 用户说"学习排版"/"学排版" → `python3 {skill_dir}/scripts/learn_theme.py <url> --name <name>`，用户需提供一个公众号文章 URL 和主题名称。提取完成后提示用户设置 `style.yaml` 的 `theme` 字段。
 - 用户说"学习这篇文章"/"导入范文" + URL → `python3 {skill_dir}/scripts/fetch_article.py <url> -o /tmp/article.md && python3 {skill_dir}/scripts/extract_exemplar.py /tmp/article.md -s <账号名>`，从公众号文章 URL 提取正文并导入范文库。支持三级降级（requests → Playwright → 手动 HTML）。
 - 用户说"看看文章数据" → `读取: {skill_dir}/references/effect-review.md`
 - 用户说"检查一下"/"自检"/"这篇文章怎么样" → 对最近一篇生成的文章（或用户指定的文章）执行自检，输出生成报告：
+  1. `python3 {skill_dir}/scripts/article_diagnose.py {article_path}`
+  2. Agent 结合诊断结果和 history.yaml 信息，综合解读并翻译为用户可操作的建议
+  3. 按影响度排序问题和建议，最多展示 10 条
+  4. 输出格式：自然语言报告，不输出 JSON 或原始分数
 
-  **第一部分：生成档案**（告诉用户这篇文章是怎么来的）
-  1. 读取 `history.yaml` 最近一条记录，提取：
-     - 使用的框架类型 + 写作人格
-     - 激活的维度随机化组合
-     - 素材采集来源（WebSearch 还是降级到 LLM）
-     - 内容增强策略（角度发现/密度强化/细节锚定/真实体感）
-     - 范文风格库是否命中（用了哪几篇 exemplar，还是 fallback 到种子）
-     - playbook 中生效的规则条数
-  2. 如果 history.yaml 无记录或用户指定了外部文章 → 跳过此部分，提示"这篇文章不是 Writer 生成的，只做质量检查"
-
-  **第二部分：质量检查**（告诉用户哪里还能改）
-  1. `python3 {skill_dir}/scripts/humanness_score.py {article_path} --json`
-  2. Agent 解读 JSON 中每项得分，翻译为用户可操作的建议，格式：
-     - 每条建议定位到具体段落或句子（"第 3 段连续 4 句长度接近"）
-     - 给出具体改法（"建议把第 3 句拆成两个短句"、"这里可以加一句你自己的感受"）
-     - 按影响度排序，最多 5 条
-  3. 如果所有项得分都不错 → "这篇文章质量不错，建议在编辑锚点处加入你的个人内容就可以发了。"
-
-  **输出格式**：自然语言报告，不输出 JSON 或分数（用户不需要看数字）
+  如果用户说"检查一下 --json" → 直接输出 `article_diagnose.py --json` 的完整 JSON
 - 用户说"更新"/"更新 Writer"/"升级" → 在 `{skill_dir}` 执行 `git pull origin main`，完成后告知版本变化
+- 用户说"看看数据"/"数据报告"/"数据面板" → `python3 {skill_dir}/scripts/data_report.py`，生成 HTML 可视化数据报告（发文趋势、平台分布、质量演变、框架使用、热门话题等）
+- 用户说"看看数据 --days 30" → 只看最近 30 天数据
+- 用户说"看看数据 --json" → 输出 JSON 格式数据
+- 用户说"公众号复盘"/"微信数据" → `python3 {skill_dir}/scripts/wechat_review.py`，生成公众号专属数据复盘报告（标题策略分析、框架效果对比、质量趋势、优化建议）
+- 用户说"生成小红书封面"/"小红书封面" → `python3 {skill_dir}/scripts/xhs_cover_gen.py --title "{标题}" --style {风格}`，生成 3:4 比例封面图（支持 minimalist/bold/gradient/dark/warm 五种风格）
+- 用户说"检查版本" → `python3 {skill_dir}/scripts/version_check.py`，显示当前版本和更新信息
+- 用户说"查看错误"/"错误日志" → `python3 {skill_dir}/scripts/error_logger.py --show`，显示最近错误记录
 
 ---
 
@@ -144,7 +163,10 @@ TaskCreate: "Step 8: 收尾"
 | 豆瓣、豆瓣文章 | douban |
 | 大鱼号 | dayu |
 | 36kr、36氪 | kr36 |
-| 多平台发布、一键多发 | all（全部 12 个平台） |
+| 哔哩哔哩、B站 | bilibili |
+| 抖音、短视频 | douyin |
+| Newsletter、邮件 | newsletter |
+| 多平台发布、一键多发 | all（全部 15 个平台） |
 
 **未明确指定平台时**：
 - 如果触发词包含"公众号/微信/推文"等 → 默认 wechat
@@ -199,13 +221,13 @@ python3 {skill_dir}/toolkit/image_gen.py --prompt "测试图片：一个简洁�
 **1.2 版本检查**（静默通过或提醒）：
 
 ```bash
-cd {skill_dir} && git fetch origin main --quiet 2>/dev/null
+python3 {skill_dir}/scripts/version_check.py --skip-check 2>/dev/null
 ```
 
-比对本地 `{skill_dir}/VERSION` 与远程 `git show origin/main:VERSION`：
+比对本地 `{skill_dir}/VERSION` 与远程版本：
 - 相同 → 静默通过
 - 不同 → 提示用户："Writer 有新版本可用（当前 X → 最新 Y），说「更新」即可升级。"**不阻断流程**，继续 1.3
-- git 不可用（无 .git 目录或 fetch 失败）→ 静默跳过
+- 脚本不可用 → 静默跳过
 
 **1.3 加载风格**：
 
@@ -227,6 +249,10 @@ cd {skill_dir} && git fetch origin main --quiet 2>/dev/null
 ```bash
 python3 {skill_dir}/scripts/fetch_hotspots.py --limit 30
 ```
+
+可选参数：
+- `--sources weibo,baidu,36kr` — 指定数据源（weibo/toutiao/baidu/douban/36kr/zhihu）
+- `--category 科技` — 按分类过滤（科技/商业/社会/娱乐）
 
 **降级**：脚本报错 → WebSearch "今日热点 {topics第一个垂类}"
 
@@ -409,9 +435,13 @@ Category 映射规则：
 
 保存到 `{skill_dir}/output/{date}-{slug}/{platform}.md`（作为中间文件，最终导出在 Step 7 完成）
 
-**多平台模式**：
-- 基于同一篇文章，按各平台的 platform_overrides 调整语气/风格，生成各平台适配版本
-- 如果未配置 platform_overrides，则基于全局风格，只调整字数和格式
+**多平台模式（强制规则）**：
+- **每个平台必须独立生成完全不同的文章**——标题不同、角度不同、框架不同、案例不同、金句不同、字数不同
+- **每个平台必须独立生成完全不同的配图**——风格不同、构图不同、提示词不同
+- **禁止**基于一篇文章做简单的语气/风格调整——必须从零开始为每个平台撰写
+- 通过 history.yaml 去重：每生成一篇立即写入 history.yaml，下一篇生成前检查已有文章避免重复
+- 各平台文章保存到 `{skill_dir}/output/{date}-{slug}/{platform}.md`
+- 各平台配图保存到 `{skill_dir}/output/{date}-{slug}/{platform}/`
 
 **4.5 快速自检**（写完后立即执行，减少 Step 5 重写概率）：
 
@@ -492,9 +522,11 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 ---
 
-### Step 6: 视觉 AI
+### Step 6: 视觉 AI（与写作同步执行）
 
-**如果 `skip_image_gen = true`** → 只执行 6.1。
+**重要**：Step 6 应在 Step 4 写作完成后立即执行，不要等到 Step 7 导出时才处理图片。文章和配图必须同时产出。
+
+**如果 `skip_image_gen = true`** → 只执行 6.1，输出图片提示词供用户参考。
 
 ```
 读取: {skill_dir}/references/visual-prompts.md
@@ -510,7 +542,7 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 **6.3b 风格锚定**：封面确认后，提取视觉锚点（色板 hex、风格关键词、画面调性），后续所有内文配图的提示词必须引用这组锚点，保证全文视觉一致。
 
-**6.4 内文配图**：分析文章结构，为每个需要配图的段落选择图片类型（infographic/scene/flowchart/comparison/framework/timeline），使用对应的结构化提示词模板生成配图提示词（按 visual-prompts.md）。批量调用 image_gen.py，替换 Markdown 占位符。
+**6.4 内文配图**：分析文章结构，为每个需要配图的段落选择图片类型（infographic/scene/flowchart/comparison/framework/timeline），使用对应的结构化提示词模板生成配图提示词（按 visual-prompts.md）。批量调用 image_gen.py，将图片路径嵌入 Markdown 文件的对应段落之后。
 
 **平台配图规范**：
 
@@ -680,6 +712,118 @@ Converter 自动处理：
 | 导入范文 / 建范文库 | `python3 {skill_dir}/scripts/extract_exemplar.py article.md` |
 | 查看范文库 | `python3 {skill_dir}/scripts/extract_exemplar.py --list` |
 | 验证配置 / 检查配置 / 测试图片 | 执行图片生成验证流程 |
+
+---
+
+## Per-Platform 独立生成流程
+
+当用户要求"每个平台写不一样的"或"各平台独立生成"时，执行以下流程。
+
+### 流程概述
+
+同主题 → 各平台独立文章（标题不同、角度不同、案例不同、金句不同） → 各平台独立配图（风格不同、构图不同） → 导出各平台文件 → 生成HTML清单
+
+### Step P1: 确定主题和平台
+
+```
+读取: {skill_dir}/references/frameworks.md
+读取: {skill_dir}/platforms/{platform}.md（所有目标平台规范）
+读取: {skill_dir}/history.yaml（去重检查）
+```
+
+- 确定主题（用户提供或从热点中选取）
+- 确定目标平台（用户指定或默认全部）
+- 检查 history.yaml 中是否已有相同主题的文章记录
+
+### Step P2: 为每个平台独立生成文章
+
+```
+# 调用 platform_writer.py 的 write_for_platforms() 函数
+# 或 AI 助手在对话中为每个平台撰写文章
+```
+
+**去重引擎**：
+- platform_writer.py 内置去重引擎，读取 history.yaml 检查已使用的标题、框架、收尾方式、维度组合
+- 如果检测到重复，自动添加去重指令到 prompt 中
+- 每生成一篇文章后立即写入 history.yaml，确保后续平台生成时能去重
+
+**文章差异化策略**：
+- 每个平台使用不同的 temperature（0.6-0.9）
+- 每个平台使用不同的框架提示词
+- 每个平台遵循各自的字数、风格、结构要求
+- 标题、角度、案例、金句完全不同
+
+**AI 助手模式**（适用于 openclaw/qclaw 等平台）：
+- Python 脚本检测各平台文章文件不存在时，输出每个平台的写作要求（字数、风格、框架、保存路径）
+- AI 助手（当前对话）为每个平台独立撰写文章，保存到指定路径
+- 完成后重新运行脚本继续
+
+### Step P3: 为每个平台独立生成配图
+
+```
+# 调用 platform_images.py 的 generate_platform_images() 函数
+```
+
+**配图差异化策略**：
+- 每个平台使用不同的风格提示词（PLATFORM_IMAGE_STYLES）
+- 每个平台使用不同的构图角度（IMAGE_ANGLE_POOL）
+- 每个平台使用不同的尺寸和数量（PLATFORM_IMAGE_CONFIGS）
+- 从文章内容中提取关键词，生成与文章内容相关的提示词
+- 使用 seed 参数确保每个平台的图片提示词不同
+
+### Step P4: 导出各平台文件
+
+```
+# 调用 exporter.py 的 export_platform() 函数（每个平台一次）
+# 生成 Markdown + HTML + Word 文件
+# 图片复制到各平台专属目录
+```
+
+### Step P5: 生成HTML清单
+
+```
+# 调用 exporter.py 的 generate_usage_guide()、generate_image_gallery_html()、generate_file_preview_html()
+```
+
+生成三个HTML清单文件：
+- README_文件说明.html — 文件使用说明与发布指引
+- 文件清单_可点击预览.html — 各平台文件预览与下载
+- 图片清单.html — 配图预览与下载
+
+三个文件之间可互相跳转。
+
+### CLI 命令
+
+```bash
+python3 {skill_dir}/toolkit/cli.py per-platform "文章主题" --platforms wechat,zhihu,xiaohongshu --framework 对比 --output ./output/per-platform-topic
+```
+
+### 输出结构
+
+```
+output/per-platform-topic/
+├── wechat.md / .html / .docx        # 微信公众号文章（独立内容）
+├── wechat/                          # 微信公众号专属图片
+│   ├── cover_wechat.png
+│   └── img_wechat_*.png
+├── zhihu.md / .docx                 # 知乎文章（独立内容）
+├── zhihu/                           # 知乎专属图片
+│   ├── cover_zhihu.png
+│   └── img_zhihu_*.png
+├── xiaohongshu.md / .docx           # 小红书文章（独立内容）
+├── xiaohongshu/                     # 小红书专属图片
+│   ├── cover_xiaohongshu.png
+│   └── img_xiaohongshu_*.png
+├── README_文件说明.html
+├── 文件清单_可点击预览.html
+└── 图片清单.html
+```
+
+### 降级处理
+
+- 图片生成失败：输出提示词文件，不阻断流程
+- 文本生成失败：跳过该平台，继续下一个
+- history.yaml 不存在：跳过历史去重
 
 ---
 

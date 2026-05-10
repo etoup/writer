@@ -1,6 +1,6 @@
 # 学习人工修改（核心飞轮）
 
-这是 Writer 最重要的长期价值。每次用户编辑文章后让系统学习，下一轮的初稿就会更接近用户的风格，需要的编辑量越来越少。
+这是 Writer 最重要的长期价值。每次用户编辑文章后让系统学习，下一���的初稿就会更接近用户的风��，需要的编辑量越来越少。
 
 **飞轮效应**：初稿需要改 30% → 学习 5 次��只需改 15% → 学习 20 次后只需改 5%
 
@@ -22,10 +22,10 @@ python3 {skill_dir}/scripts/learn_edits.py --draft {draft_path} --final {final_p
 读取脚本输���的 diff 数据和 INSTRUCTIONS FOR AGENT，对每个有意义的修改写入 pattern。
 
 **每个 pattern 必须包含**：
-- `type`：`word_sub` / `para_delete` / `para_add` / `structure` / `title` / `tone` / `expression`
+- `type`��`word_sub` / `para_delete` / `para_add` / `structure` / `title` / `tone` / `expression`
 - `key`：短唯一标识（英文，如 `avoid_jiangzhen`、`shorter_paragraphs`、`more_negative_emotion`）
 - `description`：这次修改是什么（如"把'讲真'替换为'坦白说'"）
-- `rule`：可执行的写作指令（**必须是祈使句，不是描述句**）
+- `rule`：可执行的写作指令���**必须是祈使句，不是描述句**）
 
 **key 的复用**：如果这次的修改和之前某个 lesson 里的 pattern 是同一种偏好（比如又一次把段落改短了），使用**相同的 key**。这样 `--summarize` 时 occurrences 会累加���confidence 自动提升。
 
@@ -46,9 +46,9 @@ python3 {skill_dir}/scripts/learn_edits.py --summarize --json
 playbook.md 是 YAML 格式，每条规则带 confidence 和元数据：
 
 ```yaml
-# Writer Playbook — 从用户编辑中学习的写作规则
-# 由 Agent 自动更新，不要手动编辑
-# confidence ≥ 5 的规则在 Step 4 写作时作为硬性约束执行
+# Writer Playbook — 从用户���辑中学习的写作规则
+# 由 Agent 自动���护，不要手动编辑
+# confidence ≥ 5 的规则在 Step 4 写作时作为硬性约束��行
 # confidence < 5 的规则作为软性参考
 
 rules:

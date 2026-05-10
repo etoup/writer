@@ -144,6 +144,8 @@ Step 8 收尾 → 写入历史 → 回复用户（文件清单 + 发布指引）
 | 导入范文 / 建范文库 | 从已发布文章提取风格指纹 |
 | 查看范文库 | 查看已导入的范文列表 |
 | 验证配置 / 检查配置 / 测试图片 | 执行图片生成验证，确认 API key 是否有效 |
+| 验证排版 / 检查主题质量 | 主题评分和视觉分析 |
+| 检查文章 / 诊断 | 生成完整文章诊断报告（结构/SEO/可读性/AI 痕迹） |
 | 更新 / 升级 | 检查并更新 Writer 版本 |
 
 ---
@@ -368,9 +370,27 @@ python3 toolkit/cli.py themes
 
 # 抓热点
 python3 scripts/fetch_hotspots.py --limit 20
+python3 scripts/fetch_hotspots.py --sources weibo,baidu,36kr --category 科技
 
-# SEO 分析
-python3 scripts/seo_keywords.py --json "AI大模型" "科技股"
+# SEO 分析（多平台）
+python3 scripts/seo_keywords.py --json "AI大模型"
+python3 scripts/seo_keywords.py --platform xiaohongshu "AI工具"
+
+# 批量生成计划
+python3 scripts/batch_gen.py gen --topic "AI大模型" --angles 3
+
+# 批量导出
+python3 scripts/batch_gen.py export --input-dir output/batch-xxx --platform all
+
+# 文章转视频脚本
+python3 scripts/convert_to_video.py article.md --platform bilibili
+python3 scripts/convert_to_video.py article.md --platform douyin
+python3 scripts/convert_to_video.py article.md --platform newsletter
+python3 scripts/convert_to_video.py article.md --all
+
+# 缓存管理
+python3 scripts/cache_manager.py status
+python3 scripts/cache_manager.py clear
 
 # 范文风格库
 python3 scripts/extract_exemplar.py article.md        # 导入范文
@@ -379,6 +399,16 @@ python3 scripts/extract_exemplar.py --list             # 查看范文库
 
 # 文章质量检查
 python3 scripts/humanness_score.py article.md --verbose
+
+# 文章完整诊断（结构+SEO+可读性+AI 痕迹）
+python3 scripts/article_diagnose.py article.md
+python3 scripts/article_diagnose.py article.md --json
+
+# 主题质量评分
+python3 scripts/theme_quality.py professional-clean
+
+# 学习飞轮 - 从用户修改稿中学习偏好
+python3 scripts/learn_edits.py original.md edited.md
 
 # 从公众号文章学习排版主题
 python3 scripts/learn_theme.py https://mp.weixin.qq.com/s/xxxx --name my-style

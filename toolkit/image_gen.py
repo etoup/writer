@@ -65,7 +65,7 @@ SIZE_PRESETS = {
         "volcengine": "2952x1256", "dashscope": "1792x1024",
     },
     "cover_xiaohongshu": {
-        "volcengine": "1080x1440", "dashscope": "1080x1440",
+        "volcengine": "1792x2304", "dashscope": "1792x2304",
     },
     "cover_weibo": {
         "volcengine": "1024x1024", "dashscope": "1024x1024",

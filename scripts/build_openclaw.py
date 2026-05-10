@@ -66,6 +66,7 @@ def transform_body(body: str) -> str:
     # 3. Path convention note
     body = body.replace(
         "本文档中 `{baseDir}` 指本 SKILL.md 所在的目录（即 Writer 的根目录）",
+        "本文档中 `{baseDir}` 指本 SKILL.md 所在的目录（即 Writer 的根目录）",
     )
 
     return body
@@ -120,7 +121,7 @@ def build(output_dir: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build OpenClaw-compatible Writer skill")      
+    parser = argparse.ArgumentParser(description="Build OpenClaw-compatible Writer skill")
     parser.add_argument(
         "-o", "--output",
         default=str(REPO_ROOT / "dist" / "openclaw"),

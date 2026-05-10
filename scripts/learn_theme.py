@@ -165,7 +165,7 @@ def _attach_title(soup, content) -> None:
     content._writer_title = title_tag.get_text(strip=True) if title_tag else ""
 
 
-def fetch_article(url: str, timeout: int = 20) -> BeautifulSoup:
+def fetch_article(url: str, timeout: int = 20) -> "BeautifulSoup tag":
     """Fetch a WeChat article, return the ``#js_content`` element.
 
     Delegates to fetch_article.fetch_html() for three-level fetching
