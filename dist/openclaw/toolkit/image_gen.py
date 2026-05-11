@@ -2,22 +2,14 @@
 """
 AI image generation module for Writer.
 
-Supports multiple providers via a simple abstraction:
-  - doubao-seedream (Volcengine Ark) — default, good for Chinese prompts
-  - openai (DALL-E 3) — broad availability
-  - gemini (Google Gemini Imagen) — multimodal image generation
-  - dashscope (Alibaba Tongyi Wanxiang) — good for Chinese prompts
-  - minimax — Chinese provider
-  - replicate — open-source models
-  - azure_openai — Azure-hosted DALL-E
-  - openrouter — multi-model proxy
-  - jimeng (ByteDance) — good for Chinese prompts
-  - Custom providers via ImageProvider base class
+Supports 2 providers with auto-fallback:
+  - volcengine (火山方舟 / Doubao Seedream) — default priority
+  - dashscope (阿里百炼 / 通义万相) — optional fallback
 
 Usage as CLI:
     python3 image_gen.py --prompt "描述" --output cover.png
     python3 image_gen.py --prompt "描述" --output cover.png --size cover
-    python3 image_gen.py --prompt "描述" --output cover.png --provider gemini
+    python3 image_gen.py --prompt "描述" --output cover.png --provider volcengine
 
 Usage as module:
     from image_gen import generate_image
@@ -67,24 +59,34 @@ _DEFAULT_SQ = "1024x1024"
 
 SIZE_PRESETS = {
     "cover": {
-        "doubao": "2952x1256", "openai": _DEFAULT, "gemini": _DEFAULT,
-        "dashscope": _DEFAULT, "minimax": _DEFAULT, "replicate": _DEFAULT,
-        "azure_openai": _DEFAULT, "openrouter": _DEFAULT, "jimeng": _DEFAULT,
+        "volcengine": "2952x1256", "dashscope": "1792x1024",
+    },
+    "cover_wechat": {
+        "volcengine": "2952x1256", "dashscope": "1792x1024",
+    },
+    "cover_xiaohongshu": {
+        "volcengine": "1792x2304", "dashscope": "1792x2304",
+    },
+    "cover_weibo": {
+        "volcengine": "1024x1024", "dashscope": "1024x1024",
     },
     "article": {
-        "doubao": "2560x1440", "openai": _DEFAULT, "gemini": _DEFAULT,
-        "dashscope": _DEFAULT, "minimax": _DEFAULT, "replicate": _DEFAULT,
-        "azure_openai": _DEFAULT, "openrouter": _DEFAULT, "jimeng": _DEFAULT,
+        "volcengine": "2560x1440", "dashscope": "1792x1024",
     },
     "vertical": {
-        "doubao": "1088x2560", "openai": _DEFAULT_V, "gemini": _DEFAULT_V,
-        "dashscope": _DEFAULT_V, "minimax": _DEFAULT_V, "replicate": _DEFAULT_V,
-        "azure_openai": _DEFAULT_V, "openrouter": _DEFAULT_V, "jimeng": _DEFAULT_V,
+        "volcengine": "1088x2560", "dashscope": "1024x1792",
     },
     "square": {
-        "doubao": "2048x2048", "openai": _DEFAULT_SQ, "gemini": _DEFAULT_SQ,
-        "dashscope": _DEFAULT_SQ, "minimax": _DEFAULT_SQ, "replicate": _DEFAULT_SQ,
-        "azure_openai": _DEFAULT_SQ, "openrouter": _DEFAULT_SQ, "jimeng": _DEFAULT_SQ,
+        "volcengine": "2048x2048", "dashscope": "1024x1024",
+    },
+    "3:4": {
+        "volcengine": "1080x1440", "dashscope": "1080x1440",
+    },
+    "16:9": {
+        "volcengine": "2560x1440", "dashscope": "1792x1024",
+    },
+    "1:1": {
+        "volcengine": "2048x2048", "dashscope": "1024x1024",
     },
 }
 
@@ -157,10 +159,10 @@ class ImageProvider(abc.ABC):
 
 # --- Providers ---
 
-class DoubaoProvider(ImageProvider):
-    """doubao-seedream via Volcengine Ark API."""
+class VolcengineProvider(ImageProvider):
+    """火山方舟 / Doubao Seedream via Volcengine Ark API."""
 
-    provider_key = "doubao"
+    provider_key = "volcengine"
 
     def __init__(self, api_key: str, model: str = "doubao-seedream-5-0-260128",
                  base_url: str = "https://ark.cn-beijing.volces.com/api/v3", **_kw):
@@ -594,32 +596,22 @@ class JimengProvider(ImageProvider):
 # --- Provider registry ---
 
 PROVIDERS = {
-    "doubao": DoubaoProvider,
-    "openai": OpenAIProvider,
-    "gemini": GeminiProvider,
+    "volcengine": VolcengineProvider,
     "dashscope": DashScopeProvider,
-    "minimax": MiniMaxProvider,
-    "replicate": ReplicateProvider,
-    "azure_openai": AzureOpenAIProvider,
-    "openrouter": OpenRouterProvider,
-    "jimeng": JimengProvider,
 }
 
 
 def _build_provider_from_entry(entry: dict) -> ImageProvider:
     """Build a single ImageProvider from a provider config entry."""
-    provider_name = entry.get("provider", "doubao")
+    provider_name = entry.get("provider", "volcengine")
     api_key = entry.get("api_key")
 
     if not api_key:
-        raise ValueError(f"No api_key for provider '{provider_name}'")
+        return None
 
     provider_cls = PROVIDERS.get(provider_name)
     if not provider_cls:
-        raise ValueError(
-            f"Unknown provider: '{provider_name}'. "
-            f"Available: {', '.join(PROVIDERS.keys())}"
-        )
+        return None
 
     kwargs = {"api_key": api_key}
     if entry.get("model"):
@@ -637,9 +629,7 @@ def _build_provider_from_entry(entry: dict) -> ImageProvider:
 def _build_provider_chain(config: dict) -> list[ImageProvider]:
     """Build an ordered list of providers to try.
 
-    Supports two config formats:
-      - Legacy:  image.provider + image.api_key (single provider)
-      - New:     image.providers (list, tried in order with auto-fallback)
+    volcengine (火山方舟) is tried first, dashscope (阿里百炼) is optional fallback.
     """
     img_cfg = config.get("image", {})
     providers_list = img_cfg.get("providers")
@@ -647,23 +637,22 @@ def _build_provider_chain(config: dict) -> list[ImageProvider]:
     if providers_list and isinstance(providers_list, list):
         chain = []
         for entry in providers_list:
-            try:
-                chain.append(_build_provider_from_entry(entry))
-            except ValueError:
-                continue  # skip misconfigured entries
+            provider = _build_provider_from_entry(entry)
+            if provider:
+                chain.append(provider)
         if not chain:
             raise ValueError(
                 "No valid providers in image.providers list. "
-                "Each entry needs 'provider' and 'api_key'."
+                "At least volcengine needs 'api_key' configured."
             )
         return chain
 
-    # Legacy single-provider format
     api_key = img_cfg.get("api_key")
+    provider_name = img_cfg.get("provider", "volcengine")
     if not api_key:
         raise ValueError(
             "image.api_key not set in config.yaml. "
-            "Configure your API key to enable image generation."
+            "Configure your 火山方舟 API key to enable image generation."
         )
     return [_build_provider_from_entry(img_cfg)]
 

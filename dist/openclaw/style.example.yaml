@@ -1,5 +1,5 @@
 # Writer 风格配置
-# 复制为 style.yaml 并修改为你的公众号信息
+# 复制为 style.yaml 并修改为你的信息
 # 或让 Writer 在首次使用时通过对话自动生成
 
 name: "Demo科技"
@@ -47,3 +47,23 @@ cover_style: "简洁科技感，蓝色调，扁平化设计"
 
 # 署名
 author: "Demo编辑部"
+
+# 平台差异化覆盖（可选，不填则用全局默认值）
+# 支持按平台调整语气、字数、内容风格、写作人格等
+platform_overrides:
+  xiaohongshu:
+    tone: "轻松活泼，口语化，多用 emoji"
+    word_count: "300-800"
+    content_style: "种草/测评/经验分享"
+    writing_persona: "warm-editor"
+  zhihu:
+    tone: "专业严谨，有数据支撑"
+    word_count: "2000-5000"
+    content_style: "干货/分析"
+    writing_persona: "industry-observer"
+  weibo:
+    word_count: "140-2000"
+  toutiao:
+    tone: "通俗易懂，标题吸引点击"
+    content_style: "热点/民生"
+  # 其他平台按需添加...

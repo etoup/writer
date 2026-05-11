@@ -278,7 +278,7 @@ def file_status_map(checks):
 
 def format_text(checks, summary, recs):
     """Format human-readable text report."""
-    lines = ["Writer Anti-AI Diagnostic", "=" * 26, ""]
+    lines = ["Writer Anti-AI Diagnostic", "=" * 25, ""]
 
     current_group = None
     group_labels = {
